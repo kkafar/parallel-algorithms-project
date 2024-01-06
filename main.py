@@ -1,35 +1,22 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 # constants
 bound = 1
 gamma = 0.33
 mass = 1
-steps = 10000
-
-t_start = 0
-t_end = 5
-dt = (t_end - t_start) / steps
-timestamps = np.arange(t_start, t_end, dt)
+dt = 0.001
 
 
 def run_simulation():
     X = 0
     V = 0
     t = 0
-    positions = [X]
-    for i in range(0, steps - 1):
+    while True:
         V = V + (-gamma * V * dt + np.random.normal(loc=0.0, scale=np.sqrt(dt))) / mass
         X = X + V * dt
         t += dt
-        positions.append(X)
-
         if abs(X) > bound:
-            positions.extend([None] * (steps - i - 2))
-            plt.plot(timestamps, positions)
-            break
-
-    return t
+            return t
 
 
 def job(simulations):
@@ -41,4 +28,3 @@ def job(simulations):
 
 results = job(25)
 print(results)
-plt.show()
