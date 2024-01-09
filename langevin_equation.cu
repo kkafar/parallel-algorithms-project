@@ -72,7 +72,7 @@ int main() {
         results.push_back({dt, total_avg, stddev});
     }
 
-    std::printf("dt,avg,std")
+    std::printf("dt,avg,std");
     for (const auto& result : results) {
         std::printf("%.2f,%.2f,%.2f\n", result.dt, result.avg_time, result.std_dev);
     }
