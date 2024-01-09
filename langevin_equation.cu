@@ -34,6 +34,7 @@ __global__ void langevin_equation(float *output, float dt, float gamma, unsigned
 }
 
 struct sim_result {
+    int path_count;
     float dt;
     float avg_time;
     float std_dev;
@@ -47,7 +48,14 @@ int main() {
     std::uniform_int_distribution<unsigned long long> dist(1, 10000); // for seed generation...
 
     const float gamma = 0.33;
-    const int par_paths = 24;
+
+
+    const int par_paths_min = 1;
+    const int par_paths_max = 48;
+    std::vector<int> paths(48);
+    for (int i = par_paths_min; i <= par_paths_max; ++i) {
+        paths.push_back(i);
+    }
 
     std::vector<float> dt_list{};
     for (int i = 1; i <= 20; ++i) {
@@ -55,14 +63,11 @@ int main() {
     }
 
     // Allocate memory on the host
-    auto *h_output = new float[par_paths];
+    auto *h_output = new float[par_paths_max];
 
     // Allocate memory on the device
     float *d_output;
-    cudaMalloc((void**)&d_output, par_paths * sizeof(float));
-
-    const int blockSize = 1;
-    const int numBlocks = (par_paths + blockSize - 1) / blockSize;
+    cudaMalloc((void**)&d_output, par_paths_max * sizeof(float));
 
     std::vector<sim_result> results{};
 
@@ -71,30 +76,36 @@ int main() {
 
     for (int i = 0; i < warmup_runs; ++i) {
         unsigned long long seed = dist(mt);
-        langevin_equation<<<numBlocks, blockSize>>>(d_output, dt_list[0], gamma, seed);
-        cudaMemcpy(h_output, d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
+        langevin_equation<<<par_paths_max, 1>>>(d_output, dt_list[0], gamma, seed);
+        cudaMemcpy(h_output, d_output, par_paths_max * sizeof(float), cudaMemcpyDeviceToHost);
     }
 
     // Actual measurements
-    for (float dt : dt_list) {
-        unsigned long long seed = dist(mt);
-        auto start = std::chrono::high_resolution_clock::now();
-        langevin_equation<<<numBlocks, blockSize>>>(d_output, dt, gamma, seed);
+    for (int path_count = par_paths_min; path_count <= par_paths_max; ++path_count) {
+        const int numBlocks = path_count;
 
-        // Copy the results back to the host
-        cudaMemcpy(h_output, d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        for (float dt : dt_list) {
+            unsigned long long seed = dist(mt);
+            auto start = std::chrono::high_resolution_clock::now();
+            langevin_equation<<<numBlocks, 1>>>(d_output, dt, gamma, seed);
 
-        const float total_avg = std::accumulate(h_output, h_output + par_paths, 0.0f) / static_cast<float>(par_paths);
-        const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
-        const float stddev = std::sqrt(std::transform_reduce(h_output, h_output + par_paths, 0.0f, std::plus{}, square_fn) / (par_paths - 1));
-        results.push_back({dt, total_avg, stddev, duration.count()});
+            // Copy the results back to the host
+            cudaMemcpy(h_output, d_output, path_count * sizeof(float), cudaMemcpyDeviceToHost);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+
+            const float total_avg = std::accumulate(h_output, h_output + path_count, 0.0f) / static_cast<float>(path_count);
+            const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
+
+            // Notice that I'm dividing by N, not by (N - 1)
+            const float stddev = std::sqrt(std::transform_reduce(h_output, h_output + path_count, 0.0f, std::plus{}, square_fn) / (path_count));
+            results.push_back({path_count, dt, total_avg, stddev, duration.count()});
+        }
     }
 
-    std::printf("dt,avg,std,time\n");
+    std::printf("path_count,dt,avg,std,time\n");
     for (const auto& result : results) {
-        std::printf("%.5f,%.2f,%.2f,%ld\n", result.dt, result.avg_time, result.std_dev, result.duration_us);
+        std::printf("%d,%.5f,%.2f,%.2f,%ld\n", result.path_count, result.dt, result.avg_time, result.std_dev, result.duration_us);
     }
 
     // Free device and host memory
