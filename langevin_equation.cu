@@ -70,7 +70,10 @@ int main() {
     const int warmup_runs = 48;
 
     for (int i = 0; i < warmup_runs; ++i) {
-        langevin_equation<<<numBlocks, blockSize>>>(d_output, dt_list[0], gamma, 1234);
+        unsigned long long seed = dist(mt);
+        auto start = std::chrono::high_resolution_clock::now();
+        langevin_equation<<<numBlocks, blockSize>>>(d_output, dt_list[0], gamma, seed);
+        auto stop = std::chrono::high_resolution_clock::now();
     }
 
     // Actual measurements
