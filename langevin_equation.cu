@@ -1,7 +1,8 @@
-%%cu
-
 #include <curand_kernel.h>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+#include <numeric>
 
 __global__ void langevin_equation(float *output, int n, float gamma, unsigned long long seed) {
     int idx = blockIdx.x;
@@ -53,10 +54,13 @@ int main() {
     // Copy the results back to the host
     cudaMemcpy(h_output, d_output, n * sizeof(float), cudaMemcpyDeviceToHost);
 
+    const float total_avg = std::accumulate(h_output, h_output + n, 0.0) / static_cast<float>(n);
+
     for (int i = 0; i < n; ++i) {
         printf("%f ", h_output[i]);
     }
     printf("\n");
+    printf("Avg: %.2f\n", total_avg);
 
     // Free device and host memory
     cudaFree(d_output);
