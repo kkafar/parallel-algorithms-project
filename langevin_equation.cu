@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <vector>
 #include <numeric>
+#include <ranges>
 
 __global__ void langevin_equation(float *output, int n, float gamma, unsigned long long seed) {
     int idx = blockIdx.x;
@@ -41,8 +42,6 @@ int main() {
     cudaMalloc((void**)&d_output, n * sizeof(float));
 
     // Set mean, standard deviation, and seed
-    float mean = 0.0f;
-    float stddev = 1.0f;
     unsigned long long seed = 1234;
 
     // Launch the CUDA kernel
@@ -55,12 +54,14 @@ int main() {
     cudaMemcpy(h_output, d_output, n * sizeof(float), cudaMemcpyDeviceToHost);
 
     const float total_avg = std::accumulate(h_output, h_output + n, 0.0) / static_cast<float>(n);
+    const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
+    const float stddev = std::transform_reduce(h_output, h_output + n, 0.0f, std::plus{}, square_fn);
 
     for (int i = 0; i < n; ++i) {
         printf("%f ", h_output[i]);
     }
     printf("\n");
-    printf("Avg: %.2f\n", total_avg);
+    printf("Avg: %.2f with std: %.2f\n", total_avg, stddev);
 
     // Free device and host memory
     cudaFree(d_output);
