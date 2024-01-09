@@ -71,9 +71,8 @@ int main() {
 
     for (int i = 0; i < warmup_runs; ++i) {
         unsigned long long seed = dist(mt);
-        auto start = std::chrono::high_resolution_clock::now();
         langevin_equation<<<numBlocks, blockSize>>>(d_output, dt_list[0], gamma, seed);
-        auto stop = std::chrono::high_resolution_clock::now();
+        cudaMemcpy(h_output, d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
     }
 
     // Actual measurements
