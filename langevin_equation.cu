@@ -9,6 +9,7 @@
 #include <random>
 #include <tuple>
 #include <algorithm>
+#include <chrono>
 
 __global__ void langevin_equation(float *output, float dt, float gamma, unsigned long long seed) {
     int idx = blockIdx.x;
@@ -36,6 +37,7 @@ struct sim_result {
     float dt;
     float avg_time;
     float std_dev;
+    long duration_us;
 };
 
 
@@ -66,20 +68,23 @@ int main() {
 
     for (float dt : dt_list) {
         unsigned long long seed = dist(mt);
+        auto start = std::chrono::high_resolution_clock::now();
         langevin_equation<<<numBlocks, blockSize>>>(d_output, dt, gamma, seed);
 
         // Copy the results back to the host
         cudaMemcpy(h_output, d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 
         const float total_avg = std::accumulate(h_output, h_output + par_paths, 0.0f) / static_cast<float>(par_paths);
         const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
         const float stddev = std::sqrt(std::transform_reduce(h_output, h_output + par_paths, 0.0f, std::plus{}, square_fn) / (par_paths - 1));
-        results.push_back({dt, total_avg, stddev});
+        results.push_back({dt, total_avg, stddev, duration.count()});
     }
 
-    std::printf("dt,avg,std\n");
+    std::printf("dt,avg,std,time\n");
     for (const auto& result : results) {
-        std::printf("%.5f,%.2f,%.2f\n", result.dt, result.avg_time, result.std_dev);
+        std::printf("%.5f,%.2f,%.2f,%ld\n", result.dt, result.avg_time, result.std_dev, result.duration_us);
     }
 
     // Free device and host memory
