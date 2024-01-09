@@ -8,6 +8,7 @@
 #include <memory>
 #include <random>
 #include <tuple>
+#include <algorithm>
 
 __global__ void langevin_equation(float *output, float dt, float gamma, unsigned long long seed) {
     int idx = blockIdx.x;
@@ -45,7 +46,11 @@ int main() {
 
     const float gamma = 0.33;
     int par_paths = 24;
-    std::vector<float> dt_list{0.001, 0.002, 0.003};
+
+    std::vector<float> dt_list{};
+    for (int i = 0; i < 20; ++i) {
+        dt_list.push_back(i * 0.001);
+    }
 
     // Allocate memory on the host
     float *h_output = new float[par_paths];
@@ -76,11 +81,10 @@ int main() {
     for (const auto& result : results) {
         std::printf("%.5f,%.2f,%.2f\n", result.dt, result.avg_time, result.std_dev);
     }
-    std::printf("\n");
-
 
     // Free device and host memory
     cudaFree(d_output);
+    free(h_output);
 
     return 0;
 }
