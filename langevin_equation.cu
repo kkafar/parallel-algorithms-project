@@ -47,7 +47,7 @@ int main() {
     std::uniform_int_distribution<unsigned long long> dist(1, 10000); // for seed generation...
 
     const float gamma = 0.33;
-    int par_paths = 24;
+    const int par_paths = 24;
 
     std::vector<float> dt_list{};
     for (int i = 1; i <= 20; ++i) {
@@ -55,17 +55,25 @@ int main() {
     }
 
     // Allocate memory on the host
-    float *h_output = new float[par_paths];
+    auto *h_output = new float[par_paths];
 
     // Allocate memory on the device
     float *d_output;
     cudaMalloc((void**)&d_output, par_paths * sizeof(float));
 
-    int blockSize = 1;
-    int numBlocks = (par_paths + blockSize - 1) / blockSize;
+    const int blockSize = 1;
+    const int numBlocks = (par_paths + blockSize - 1) / blockSize;
 
     std::vector<sim_result> results{};
 
+    // Run kernel few times before measuring times to eliminate initial outliers
+    const int warmup_runs = 48;
+
+    for (int i = 0; i < warmup_runs; ++i) {
+        langevin_equation<<<numBlocks, blockSize>>>(d_output, dt_list[0], gamma, 1234);
+    }
+
+    // Actual measurements
     for (float dt : dt_list) {
         unsigned long long seed = dist(mt);
         auto start = std::chrono::high_resolution_clock::now();
