@@ -48,7 +48,7 @@ int main() {
     int par_paths = 24;
 
     std::vector<float> dt_list{};
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 1; i <= 20; ++i) {
         dt_list.push_back(i * 0.001);
     }
 
