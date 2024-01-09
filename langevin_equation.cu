@@ -4,6 +4,7 @@
 #include <vector>
 #include <numeric>
 #include <ranges>
+#include <cmath>
 
 __global__ void langevin_equation(float *output, int n, float gamma, unsigned long long seed) {
     int idx = blockIdx.x;
@@ -53,9 +54,9 @@ int main() {
     // Copy the results back to the host
     cudaMemcpy(h_output, d_output, n * sizeof(float), cudaMemcpyDeviceToHost);
 
-    const float total_avg = std::accumulate(h_output, h_output + n, 0.0) / static_cast<float>(n);
+    const float total_avg = std::accumulate(h_output, h_output + n, 0.0f) / static_cast<float>(n);
     const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
-    const float stddev = std::transform_reduce(h_output, h_output + n, 0.0f, std::plus{}, square_fn);
+    const float stddev = std::sqrt(std::transform_reduce(h_output, h_output + n, 0.0f, std::plus{}, square_fn) / (n - 1));
 
     for (int i = 0; i < n; ++i) {
         printf("%f ", h_output[i]);
