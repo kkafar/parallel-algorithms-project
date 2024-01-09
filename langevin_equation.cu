@@ -48,7 +48,7 @@ int main() {
     std::vector<float> dt_list{0.001, 0.002, 0.003};
 
     // Allocate memory on the host
-    const auto h_output = std::make_shared<float[]>(par_paths);
+    float *h_output = new float[par_paths];
 
     // Allocate memory on the device
     float *d_output;
@@ -64,11 +64,11 @@ int main() {
         langevin_equation<<<numBlocks, blockSize>>>(d_output, dt, gamma, seed);
 
         // Copy the results back to the host
-        cudaMemcpy(h_output.get(), d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_output, d_output, par_paths * sizeof(float), cudaMemcpyDeviceToHost);
 
-        const float total_avg = std::accumulate(h_output.get(), h_output.get() + par_paths, 0.0f) / static_cast<float>(par_paths);
+        const float total_avg = std::accumulate(h_output, h_output + par_paths, 0.0f) / static_cast<float>(par_paths);
         const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };
-        const float stddev = std::sqrt(std::transform_reduce(h_output.get(), h_output.get() + par_paths, 0.0f, std::plus{}, square_fn) / (par_paths - 1));
+        const float stddev = std::sqrt(std::transform_reduce(h_output, h_output + par_paths, 0.0f, std::plus{}, square_fn) / (par_paths - 1));
         results.push_back({dt, total_avg, stddev});
     }
 
