@@ -17,14 +17,14 @@ def configure_env():
 
 def build_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument('f', 'file', dest='file', type=Path, required=True, help='path to data file')
+    parser.add_argument('-f', '--file', dest='file', type=Path, required=True, help='path to data file')
     return parser
 
 
 def process_data(data_df: pl.DataFrame):
     path_counts = data_df.get_column('path_count').unique().sort()
     dt_series = data_df.get_column('dt').unique().sort()
-    # plot_solution_time_by_dt(data_df, path_counts)
+    plot_solution_time_by_dt(data_df, path_counts)
     plot_compute_time(data_df, dt=0.01)
 
 
@@ -64,7 +64,8 @@ def plot_compute_time(data_df: pl.DataFrame, dt: float):
     fig, plots = plt.subplots(nrows=1, ncols=2)
     data_df = data_df.filter(pl.col('dt') == dt).sort(pl.col('path_count'))
 
-    t0 = data_df.filter(pl.col('path_count') == 1).item(0, 'time')
+    # t0 = data_df.filter(pl.col('path_count') == 1).item(0, 'time')
+    t0 = data_df.filter(pl.col('path_count') == 1).get_column('time')[0]
 
     data_df = data_df.with_columns([
         (t0 * pl.col('path_count') / pl.col('time')).alias('speedup')
@@ -77,9 +78,10 @@ def plot_compute_time(data_df: pl.DataFrame, dt: float):
     plots[0].set(
         title=f'Czas obliczen od rozmiaru liczby bloków GPU (skalowanie słabe), dt: {dt:.3f}',
         xlabel='Liczba bloków GPU / liczonych ścieżek',
-        ylabel='Czas wykonania obliczeń [us]'
+        ylabel='Czas wykonania obliczeń [ns]'
     )
     plots[1].plot(x_data, y_sp_data, marker='o', linestyle='--')
+    plots[1].plot(x_data, x_data, linestyle='-.')
     plots[1].set(
         title=f'Przyśpieszenie (słabe), dt: {dt:.3f}',
         ylabel='Speedup',
@@ -96,8 +98,6 @@ def main():
     # path_count,dt,avg,std,time
     data_df = pl.read_csv(args.file, has_header=True)
     process_data(data_df)
-
-
 
 
 if __name__ == "__main__":
