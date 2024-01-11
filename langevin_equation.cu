@@ -51,8 +51,8 @@ int main() {
 
 
     const int par_paths_min = 1;
-    const int par_paths_max = 48;
-    std::vector<int> paths(48);
+    const int par_paths_max = 96;
+    std::vector<int> paths(par_paths_max - par_paths_min + 1);
     for (int i = par_paths_min; i <= par_paths_max; ++i) {
         paths.push_back(i);
     }
