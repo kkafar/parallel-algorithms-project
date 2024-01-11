@@ -88,11 +88,12 @@ int main() {
             unsigned long long seed = dist(mt);
             auto start = std::chrono::high_resolution_clock::now();
             langevin_equation<<<numBlocks, 1>>>(d_output, dt, gamma, seed);
-
-            // Copy the results back to the host
-            cudaMemcpy(h_output, d_output, path_count * sizeof(float), cudaMemcpyDeviceToHost);
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+
+            // WE DO NOT MEASURE COPY TIME
+            // Copy the results back to the host
+            cudaMemcpy(h_output, d_output, path_count * sizeof(float), cudaMemcpyDeviceToHost);
 
             const float total_avg = std::accumulate(h_output, h_output + path_count, 0.0f) / static_cast<float>(path_count);
             const auto square_fn = [total_avg](auto val) { return (val - total_avg) * (val - total_avg); };

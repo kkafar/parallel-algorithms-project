@@ -1,11 +1,23 @@
 import polars as pl
 import matplotlib.pyplot as plt
 from typing import Iterable
+from dataclasses import dataclass
+import argparse
+
+@dataclass
+class Args:
+    file: Path
 
 def configure_env():
     pl.Config.set_tbl_cols(100)
     pl.Config.set_tbl_rows(100)
     plt.rcParams['figure.figsize'] = (16, 9)
+
+
+def build_cli() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('f', 'file', dest='file', type=Path, required=True, help='path to data file')
+    return parser
 
 
 def process_data(data_df: pl.DataFrame):
@@ -77,10 +89,11 @@ def plot_compute_time(data_df: pl.DataFrame, dt: float):
 
 
 def main():
+    args: Args = build_cli().parse_args()
     configure_env()
 
     # path_count,dt,avg,std,time
-    data_df = pl.read_csv('output.csv', has_header=True)
+    data_df = pl.read_csv(args.file, has_header=True)
     process_data(data_df)
 
 
